@@ -40,6 +40,12 @@ clarks <-  mutate(clarks,
 clarks <-  mutate(clarks,
                   prop.spend.online = online.spend /  total.spend,
                   prop.trans.online = online.trans / total.trans) 
+
+
+clarks <-  mutate(clarks,
+                  online.spend.per.trans = online.spend /  online.trans,
+                  store.spend.per.trans = store.spend /  store.trans,
+                  total.spend.per.trans = total.spend /  total.trans) 
 ```
 
 
@@ -70,6 +76,7 @@ Are number of online and store transactions positively or negatively correlated?
 ```{r}
  ggplot(data = clarks, aes(x = store.trans, y = online.trans)) +
           geom_point() 
+        
     ```
 
 
@@ -78,7 +85,7 @@ Are online and store spends positively or negatively correlated? -negative
 ```{r}
 ggplot(data = clarks, aes(x = store.spend, y = online.spend)) +
           geom_point() +
-          scale_x_log10()
+           scale_x_continuous(trans='log10') + scale_y_continuous(trans='log10')
 ```
 
 
@@ -108,29 +115,85 @@ ggplot( aes(x = prop.trans.online, y = total.trans)) +
 
 
 
+# Online profile
+
+```{r}
+clarks.spend %>%
+  ggplot( aes(x = online.profile, y = total.spend.per.trans, group = online.profile, color = distance.to.store)) + 
+    geom_jitter( alpha=0.05 )   +
+    geom_boxplot( colour = "blue" , alpha=0)  
+```
+
+
+```{r}
+clarks.spend %>%
+  ggplot( aes(x = online.profile, y = total.spend, group = online.profile)) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1)))+
+    geom_jitter(alpha = 0.01 , colour = "blue" ) +
+    geom_boxplot(alpha = 0)  
+```
+
+
+```{r}
+clarks.spend %>%
+  ggplot( aes(x = online.profile, y = sat.selection, group = online.profile)) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1)))+
+    geom_jitter(alpha = 0.01 , colour = "blue" ) +
+    geom_boxplot(alpha = 0)  
+```
+
+```{r}
+clarks.spend[clarks.spend$sat.service != "NA",] %>%
+ggplot(aes(online.profile)) + 
+  geom_bar(aes(fill = as.factor(sat.service)), position = "fill")
+```
+
 # Age
 ```{r}
- ggplot(data = clarks, aes(x = age, y = total.spend, colour = online.profile)) +
-          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+ ggplot(data = clarks.spend, aes(x = age, y = total.spend, colour = online.profile)) +
+          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1))) +
+        scale_y_continuous(trans='log2') + geom_hline(yintercept = 50) 
 ```
+
+
+```{r}
+ ggplot(data = clarks.spend, aes(x = age, y = total.spend.per.trans, colour = online.profile)) +
+          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1))) 
+```
+```{r}
+
+filter(clarks.spend , online.profile != "Store only") %>%
+ ggplot(aes(x = age, y = total.spend.per.trans, colour = online.profile)) +
+          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1))) 
+```
+
+
+
 
 
 
 # Credit score
 
 ```{r}
- ggplot(data = clarks, aes(x = credit.score, y = total.spend, colour = online.profile)) +
-          geom_point(alpha = 0.1)+ guides(colour = guide_legend(override.aes = list(alpha = 1)))
+ ggplot(data = clarks.spend, aes(x = credit.score, y = total.spend, colour = online.profile)) +
+          geom_point(alpha = 0.1)+ guides(colour = guide_legend(override.aes = list(alpha = 1))) +
+ scale_y_continuous(trans='log2')
 ```
 
+```{r}
+ ggplot(data = clarks.spend, aes(x = credit.score, y = total.spend.per.trans, colour = online.profile)) +
+          geom_point(alpha = 0.1)+ guides(colour = guide_legend(override.aes = list(alpha = 1))) +
+ scale_y_continuous(trans='log2')
+```
 
 # distance to store
 
 ```{r}
-filter(clarks, distance.to.store < 0.99* max(distance.to.store)) %>%
+filter(clarks.spend, distance.to.store < 0.99* max(distance.to.store)) %>%
 
 ggplot( aes(x = distance.to.store, y = total.spend, colour = online.profile)) +
-          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1))) +
+         scale_x_continuous(trans='log10') + scale_y_continuous(trans='log2')
 ```
 
 
@@ -149,6 +212,11 @@ ggplot( aes(x = distance.to.store, y = total.spend, colour = online.profile)) +
  ggplot(data = clarks, aes(x = online.visits, y = store.spend, colour = online.profile)) +
           geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1)))
 ```
+
+
+
+
+
 
 ```{r}
  ggplot(data = clarks, aes(x = store.trans, y = store.spend, colour = prop.spend.online)) +
@@ -173,11 +241,50 @@ ggplot( aes(x = distance.to.store, y = total.spend, colour = online.profile)) +
  Are older people more satisfied? 
  
 ```{r}
-ggplot(data=clarks, aes(x = age, y = sat.service , colour = prop.spend.online)) +
-          geom_point(alpha = 0.1)
+clarks %>%
+mutate(age.group=cut(age, breaks=c(0, 20, 30, 40, 50, 100), labels=c("<20","20s","30s","40s","50s"))) %>%
+  group_by(age.group) %>%
+  filter(sat.service != "NA") %>%
+    summarize(mean.satisfaction = mean(sat.service))
+
 ```
  
+
  
+  Are older people spending more per transaction?
+ 
+```{r}
+clarks %>%
+mutate(age.group=cut(age, breaks=c(0, 20, 30, 40, 50, 100), labels=c("<20","20s","30s","40s","50s"))) %>%
+  ggplot( aes(x = age.group, y = total.spend.per.trans, group = age.group, colour = online.profile)) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1)))+
+    geom_jitter(alpha = 0.1 ) +
+    geom_boxplot(alpha = 0)  
+```
+ 
+  Are older people spending more money?
+ 
+```{r}
+clarks %>%
+mutate(age.group=cut(age, breaks=c(0, 20, 30, 40, 50, 100), labels=c("<20","20s","30s","40s","50s"))) %>%
+  ggplot( aes(x = age.group, y = total.spend, group = age.group, colour = online.profile)) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1)))+
+    geom_jitter(alpha = 0.1 ) +
+    geom_boxplot(alpha = 0)  
+```
+ 
+  Are older people spending more frequently?
+ 
+```{r}
+clarks.spend %>%
+mutate(age.group=cut(age, breaks=c(0, 20, 30, 40, 50, 100), labels=c("<20","20s","30s","40s","50s"))) %>%
+  ggplot( aes(x = age.group, y = total.trans, group = age.group, colour = online.profile)) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1)))+
+    geom_jitter(alpha = 0.1 ) +
+    geom_boxplot(alpha = 0)  
+```
+
+
  
  
  
