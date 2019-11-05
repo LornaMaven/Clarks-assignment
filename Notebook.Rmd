@@ -1,0 +1,347 @@
+---
+title: "R Notebook - Clarks interview assignment"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+install.packages("tidyverse")  
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r}
+library(tidyverse)
+```
+```{r}
+clarks <- read.csv("data/Data\ Science\ Assessment.csv")
+```
+
+```{r}
+summary(clarks)
+```
+
+Note: Max age is very young - ignoring the fastest growing demographic in UK (the ageing baby boomers).
+Very high outliers for almost all variables
+
+
+```{r}
+clarks <-  mutate(clarks,
+                  total.spend = online.spend + store.spend,
+                  total.trans = online.trans + store.trans) 
+ 
+
+clarks <-  mutate(clarks,
+                  prop.spend.online = online.spend /  total.spend,
+                  prop.trans.online = online.trans / total.trans) 
+```
+
+
+
+In store spending accounts for 20% of total
+```{r}
+total_online = sum(clarks$online.spend)
+total_store = sum(clarks$store.spend)
+
+total_store/(total_online+total_store)
+```
+
+```{r}
+clarks$online.profile <- "Mixed"
+clarks$online.profile[clarks$online.spend == 0] <- "Store only"
+clarks$online.profile[clarks$store.spend == 0] <- "Online only"
+clarks$online.profile[clarks$total.spend == 0] <- "No spend"
+```
+
+
+```{r}
+clarks.spend <- filter(clarks , online.profile != "No spend")
+```
+
+
+
+Are number of online and store transactions positively or negatively correlated? -negative
+```{r}
+ ggplot(data = clarks, aes(x = store.trans, y = online.trans)) +
+          geom_point() 
+    ```
+
+
+
+Are online and store spends positively or negatively correlated? -negative 
+```{r}
+ggplot(data = clarks, aes(x = store.spend, y = online.spend)) +
+          geom_point() +
+          scale_x_log10()
+```
+
+
+Are transactions and spend correlated?  YES
+```{r}
+ ggplot(data = clarks, aes(x = total.trans, y = total.spend)) +
+          geom_point()
+```
+
+
+Are prop online and total trans/spend correlated?  - Yes, particuarly at the upper end
+
+
+```{r}
+ 
+filter(clarks, !is.nan(prop.spend.online)) %>%
+ggplot( aes(x = prop.spend.online, y = total.spend)) +
+          geom_point()
+```
+```{r}
+ 
+filter(clarks, !is.nan(prop.trans.online)) %>%
+ggplot( aes(x = prop.trans.online, y = total.trans)) +
+          geom_point()
+```
+
+
+
+
+# Age
+```{r}
+ ggplot(data = clarks, aes(x = age, y = total.spend, colour = online.profile)) +
+          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+```
+
+
+
+# Credit score
+
+```{r}
+ ggplot(data = clarks, aes(x = credit.score, y = total.spend, colour = online.profile)) +
+          geom_point(alpha = 0.1)+ guides(colour = guide_legend(override.aes = list(alpha = 1)))
+```
+
+
+# distance to store
+
+```{r}
+filter(clarks, distance.to.store < 0.99* max(distance.to.store)) %>%
+
+ggplot( aes(x = distance.to.store, y = total.spend, colour = online.profile)) +
+          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+```
+
+
+
+```{r}
+ ggplot(data = clarks, aes(x = online.visits, y = total.spend,  colour = online.profile)) +
+          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+```
+
+
+```{r}
+ ggplot(data = clarks, aes(x = online.visits, y = online.spend, colour = online.profile)) +
+          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+```
+```{r}
+ ggplot(data = clarks, aes(x = online.visits, y = store.spend, colour = online.profile)) +
+          geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+```
+
+```{r}
+ ggplot(data = clarks, aes(x = store.trans, y = store.spend, colour = prop.spend.online)) +
+          geom_point(alpha = 0.1)
+```
+
+```{r}
+ ggplot(data = clarks, aes(x = store.trans, y = online.spend, colour = prop.spend.online)) +
+          geom_point(alpha = 0.1)
+```
+
+
+```{r}
+ ggplot(data = clarks, aes(x = store.trans, y = total.spend, colour = prop.spend.online)) +
+          geom_point(alpha = 0.1)
+```
+
+
+
+
+
+ Are older people more satisfied? 
+ 
+```{r}
+ggplot(data=clarks, aes(x = age, y = sat.service , colour = prop.spend.online)) +
+          geom_point(alpha = 0.1)
+```
+ 
+ 
+ 
+ 
+ 
+ Are more satisfied people making more purchases?
+```{r}
+
+filter(clarks, sat.service != "NA") %>%
+ggplot( aes(x = sat.service, y = total.trans, group = sat.service, colour = online.profile)) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1)))+
+    geom_jitter(alpha = 0.1 ) +
+    geom_boxplot(alpha = 0)  
+```
+ 
+ 
+ 
+   Are more satisfied people spending more?
+```{r}
+
+filter(clarks, sat.service != "NA") %>%
+ggplot( aes(x = sat.service, y = total.spend, group = sat.service, color = prop.spend.online)) +
+    geom_jitter(alpha = 0.1 ) +
+    geom_boxplot(alpha = 0)  
+```
+
+
+```{r}
+filter(clarks, sat.selection != "NA") %>%
+ggplot( aes(x = sat.selection, y = total.spend, group = sat.selection, color = prop.spend.online)) +
+    geom_jitter(alpha = 0.1 ) +
+    geom_boxplot(alpha = 0)  
+```
+
+
+
+
+
+```{r}
+filter(clarks, sat.service != "NA") %>%
+filter( !is.nan(prop.spend.online)) %>%
+ggplot( aes(x = prop.spend.online, y = sat.service)) +
+    geom_point(alpha = 0.1 ) 
+
+```
+```{r}
+
+filter(clarks, sat.service != "NA") %>%
+ggplot( aes(x = sat.service, y =  prop.spend.online, group = sat.service)) +
+    geom_jitter(alpha = 0.05 ) +
+    geom_violin(alpha = 0, colour = "red")  
+```
+
+```{r}
+
+filter(clarks, sat.selection != "NA") %>%
+ggplot( aes(x = sat.selection, y =  prop.spend.online, group = sat.selection)) +
+    geom_jitter(alpha = 0.05 ) +
+    geom_violin(alpha = 0, colour = "red")  
+```
+
+
+
+Does distance from store affect how satified customers are with service?
+
+
+
+
+```{r}
+clarks%>%
+group_by(sat.selection)%>%
+summarize(mean.spend = mean(total.spend))%>%
+  ggplot( aes(x=sat.selection, y=mean.spend)) + 
+  geom_col()
+```
+
+
+```{r}
+clarks%>%
+group_by(sat.service)%>%
+summarize(mean.spend = mean(total.spend))%>%
+  ggplot( aes(x=sat.service, y=mean.spend)) + 
+  geom_col()
+```
+
+
+
+
+
+```{r}
+
+filter(clarks, sat.selection != "NA") %>%
+ggplot( aes(x = sat.selection)) +
+    geom_bar( ) 
+  
+```
+
+
+```{r}
+filter(clarks, sat.selection != "NA") %>%
+ggplot( aes(x = sat.service)) +
+    geom_bar( ) 
+  
+```
+
+```{r}
+clarks%>%
+mutate(no.online.visits = online.visits==0) %>% 
+ggplot( aes(x = no.online.visits, y = total.spend, group = no.online.visits, colour = sat.service)) +
+    geom_jitter(alpha = 0.05 ) +
+    geom_violin(alpha = 0, colour = "red")  
+```
+
+```{r}
+clarks.spend%>%
+filter(online.profile != "None") %>%
+ggplot( aes(x = online.profile, y = total.spend, group = online.profile, colour = sat.service)) +
+    geom_jitter(alpha = 0.05 ) +
+    geom_violin(alpha = 0, colour = "red")  
+```
+
+
+
+```{r}
+clarks.spend%>%
+filter(online.profile != "None") %>%
+ggplot( aes(x = online.profile, y = distance.to.store, group = online.profile, colour = sat.service)) +
+    geom_jitter(alpha = 0.05 ) +
+    geom_violin(alpha = 0, colour = "red")  
+```
+
+
+
+
+```{r}
+clarks%>%
+filter(store.spend>0)%>%
+ggplot( aes(x = distance.to.store, y = store.spend, colour = sat.service)) +
+geom_point(alpha=0.1)
+```
+
+
+
+```{r}
+clarks%>%
+mutate(store = store.spend > 0)%>%
+group_by(store) %>%
+summarize(mean_spend = mean(online.spend))
+
+```
+
+```{r}
+clarks%>%
+mutate(store = store.spend > 0)%>%
+ggplot(aes(x=store, y=total.spend , group=store))+
+  geom_violin()
+
+```
+
+
+
+
+
+
+
+
+
+
+
