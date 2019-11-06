@@ -1,0 +1,130 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Initial look at data visualisation suggests models will not perform particuarly well at this stage.
+
+However, there are plenty of things that could be tried with more promising data.
+
+For example:
+
+* Regression model to look at relative influence of different factors on total spend? 
+* Unsupervised clustering algorithm to detect "groups" of customer profile that may spend differently?
+
+
+
+This notebook has a very first look at kmeans clustering for customer segmentation.
+
+Customer Segmentation is the subdivision of a market into discrete customer groups that share similar characteristics. Customer Segmentation can be a powerful means to identify unsatisfied customer needs. Using the above data companies can then outperform the competition by developing uniquely appealing products and services.
+
+Ways in which businesses segment their customer base include:
+1. Demographic information, such as gender, age, familial and marital status, income, education, and occupation.
+2. Geographical information, which differs depending on the scope of the company. For localized businesses, this info might pertain to specific towns or counties. For larger companies, it might mean a customer’s city, state, or even country of residence.
+3. Psychographics, such as social class, lifestyle, and personality traits.
+4. Behavioral data, such as spending and consumption habits, product/service usage, and desired benefits.
+
+Advantages of Customer Segmentation
+*Determine appropriate product pricing.
+*Develop customized marketing campaigns.
+*Design an optimal distribution strategy.
+*Choose specific product features for deployment.
+*Prioritize new product development efforts.
+
+
+Install following packages if you don't have them
+```{r}
+library("tidyverse")
+library("scatterplot3d")
+```
+
+
+Read in data
+```{r}
+clarks <- read.csv("data/Data\ Science\ Assessment.csv")
+```
+```{r}
+clarks <-  mutate(clarks,
+                  total.spend = online.spend + store.spend) 
+
+clarks$email <- as.numeric(clarks$email=="yes")
+clarks[,3:14] <- scale(clarks[,3:14]) 
+```
+
+
+
+K-means algorithm can be summarized as follows:
+
+Specify the number of clusters4ters (K) to be created (by the analyst)
+Select randomly k objects from the data set as the initial clusters4ter centers or means
+Assigns each observation to their closest centroid, based on the Euclidean distance between the object and the centroid
+For each of the k clusters4ters update the clusters4ter centroid by calculating the new mean values of all the data points in the clusters4ter. The centroid of a Kth clusters4ter is a vector of length p containing the means of all variables for the observations in the kth clusters4ter; p is the number of variables.
+Iteratively minimize the total within sum of square (Eq. 7). That is, iterate steps 3 and 4 until the clusters4ter assignments stop changing or the maximum number of iterations is reached. By default, the R software uses 10 as the default value for the maximum number of iterations.
+
+
+
+3 clusters
+```{r}
+set.seed(20)
+clusters3 <- kmeans(clarks[,c(3:6)], 3)
+
+clarks$clusters3 <- as.factor(clusters3$cluster)
+
+str(clusters3)
+```
+
+
+```{r}
+ ggplot(data = clarks, aes(x = age, y = total.spend, colour = clusters3)) +
+          geom_point(alpha = 0.1)+ guides(colour = guide_legend(override.aes = list(alpha = 1))) 
+```
+
+
+
+4 clusters
+```{r}
+set.seed(20)
+clusters4 <- kmeans(clarks[,c(3:6)], 4)
+
+clarks$clusters4 <- as.factor(clusters4$cluster)
+
+str(clusters4)
+```
+
+5 clusters
+```{r}
+set.seed(20)
+clusters5 <- kmeans(clarks[,c(3:6)], 5)
+
+clarks$clusters5 <- as.factor(clusters5$cluster)
+
+str(clusters5)
+```
+
+
+Note: there are established methods for choosing optimum number of clusters - most prominently Elbow, Silhouhette and Gap statistic methods.
+Note: here I have used all data - would want to use a taining subset in reality.
+
+
+
+Quick example of output:
+
+
+Clustering was done on age, credit score, distance and email (age and credit score are loosely correlates so we will just plot age)
+```{r}
+scatterplot3d( clarks[,c(3,5,6)], color = as.numeric(clarks$clusters5))
+```
+
+
+
+If we remove email and instrad plot total spend we can see if our clusters have any relationship to total.spend - perhaps a little?
+```{r}
+scatterplot3d( clarks[,c(3,6,14)], color = as.numeric(clarks$clusters5))
+```
+
+
+We could explore other clustering algorithms. 
+We could also look at regression or support vector machines to try to determine which factors effect total.spend and profile customers in this way.
+We could also try using data we collect to predict if customers will be online only, store only or both which could feed into other recomendations
+
+
