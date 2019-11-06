@@ -234,6 +234,15 @@ clarks.spend %>%
 ```
 
 
+```{r}
+pivot_longer(clarks.spend, cols = store.spend.per.trans:online.spend.per.trans, names_to = "where", values_to = "ave.spend.per.trans") %>%
+ggplot(aes(x = where,y = ave.spend.per.trans), group = where) + 
+    geom_jitter( alpha=0.05 , colour = "red" )   +
+    geom_boxplot( colour = "blue" , alpha=0)  
+```
+
+
+
 Store only people tend not to spend as much OVERALL - can we get them to be returning customers? Offer in bag with purchase? For returning to store or online? Collect email addresses in store? Do we already ask? How high is take up rate?
 
 ```{r}
@@ -243,6 +252,16 @@ clarks.spend %>%
    geom_jitter( alpha=0.05 , colour = "red" )   +
     geom_boxplot( colour = "blue" , alpha=0)  
 ```
+
+```{r}
+
+select(clarks.spend, store.spend,online.spend)%>%
+pivot_longer( cols = 1:2, names_to = "where", values_to = "spend") %>%
+ggplot(aes(x = where,y = spend), group = where) + 
+    geom_jitter( alpha=0.05 , colour = "red" )   +
+    geom_boxplot( colour = "blue" , alpha=0)  
+```
+
 
 
 Email is slightly lower for store only, but actually quite low throughout - perhaps we can encourage email sharing and collect data to see how successful this is. Competition or offer to get people to sign up?
