@@ -5,32 +5,66 @@ output: html_notebook
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
-
-```{r}
-install.packages("tidyverse")  
-```
+Try executing a chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 
 When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
 
 The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+The code should be executed in order.
+
 ```{r}
-library(tidyverse)
+install.packages("tidyverse")  
+install.packages("corrplot")
 ```
+
+
+```{r}
+library("tidyverse")
+library("corrplot")
+```
+
+read in data
 ```{r}
 clarks <- read.csv("data/Data\ Science\ Assessment.csv")
 ```
 
+summarise data
 ```{r}
 summary(clarks)
 ```
 
-Note: Max age is very young - ignoring the fastest growing demographic in UK (the ageing baby boomers).
-Very high outliers for almost all variables
+# Note: Max age is very young - ignoring the fastest growing demographic in UK (the ageing baby boomers).
+# Very high extremes for many variables, heavilly skewed data
 
 
+
+check for missing data - only missing for the satisfaction score
+```{r}
+missing.values <- clarks %>%
+    gather(key = "key", value = "val") %>%
+    mutate(is.missing = is.na(val)) %>%
+    group_by(key, is.missing) %>%
+    summarise(num.missing = n()) %>%
+    filter(is.missing==T) %>%
+    select(-is.missing) %>%
+    arrange(desc(num.missing)) 
+
+missing.values
+```
+```{r}
+missing.values %>%
+  ggplot() +
+    geom_bar(aes(x=key, y=num.missing), stat = 'identity') +
+    labs(x='variable', y="number of missing values", title='Number of missing values') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+# Add some new columns
 ```{r}
 clarks <-  mutate(clarks,
                   total.spend = online.spend + store.spend,
@@ -50,7 +84,7 @@ clarks <-  mutate(clarks,
 
 
 
-In store spending accounts for 20% of total
+# In store spending accounts for 20% of total
 ```{r}
 total_online = sum(clarks$online.spend)
 total_store = sum(clarks$store.spend)
@@ -58,6 +92,8 @@ total_store = sum(clarks$store.spend)
 total_store/(total_online+total_store)
 ```
 
+
+# profile customer spending in store or online
 ```{r}
 clarks$online.profile <- "Mixed"
 clarks$online.profile[clarks$online.spend == 0] <- "Store only"
@@ -67,7 +103,7 @@ clarks$online.profile[clarks$total.spend == 0] <- "No spend"
 
 
 
-Characteristics of online profile including "No Spend"  - no correlation with age, credit, satisfaction. Distance is interesting - it looks like the No Spenders and the Online only people live further away.
+#Characteristics of online profile including "No Spend"  - no correlation with age, credit, satisfaction. Distance is interesting - it looks like the No Spenders and the Online only people live further away.
 ```{r}
 clarks %>% 
   group_by(online.profile) %>%
@@ -100,14 +136,47 @@ filter(clarks, sat.selection != "NA") %>%
 ```
 
 
-
+# Data subset of only customers who actually spend something
 ```{r}
 clarks.spend <- filter(clarks , online.profile != "No spend")
 ```
 
 
 
-Are number of online and store transactions positively or negatively correlated? -negative
+#Are there any duplicate customers who may be same person on and offline?
+#Check duplicates in distance.to.store? - only one and they have different age so all good.
+```{r}
+length(unique(clarks$distance.to.store))
+
+n_occur <- data.frame(table(clarks$distance.to.store))
+clarks[clarks$distance.to.store %in% n_occur$Var1[n_occur$Freq > 1],]
+
+```
+
+
+First look at correlations:
+Plot shows positive correlations in red and negative in blue. Bigger circles with stroger colour indicate stronger corelations.
+```{r}
+data.numeric <- mutate(clarks, numeric.email = as.numeric(email=="yes"))
+rquery.cormat(data.numeric[,c(3,4,6,7,8,9,10,11,12,13,15)])
+```
+
+online spend, visits and transactions are strongly positively correlates
+store transactions and spend also
+
+satisfaction with service and selection positively correlated
+age and credit score loosely corelated (positive)
+
+weak negative correlation between distance to store and store spend and treansactions
+
+very weak negative correlation between age and online visit/trans/spend (older people slightly less likely to shop online)
+
+total transaction is far more linked to online spend - probably as store spend in only 20% of total
+
+
+
+
+# Are number of online and store transactions positively or negatively correlated? -negative in the extremes but no major correlation
 ```{r}
  ggplot(data = clarks, aes(x = store.trans, y = online.trans)) +
           geom_point() 
@@ -116,10 +185,16 @@ Are number of online and store transactions positively or negatively correlated?
 
 
 
-Are online and store spends positively or negatively correlated? -negative 
+Plot online and store spends - reveals strange gap in online spending around £28
+
 ```{r}
-ggplot(data = clarks.spend, aes(x = store.spend, y = online.spend)) +
-          geom_point() +
+ggplot(data = clarks.spend, aes(x = store.spend, y = online.spend, colour = online.profile)) +
+          geom_point() + guides(colour = guide_legend(override.aes = list(alpha = 1))) 
+```
+
+```{r}
+ggplot(data = clarks.spend, aes(x = store.spend, y = online.spend, colour = online.profile)) +
+          geom_point() + guides(colour = guide_legend(override.aes = list(alpha = 1))) +
            scale_x_continuous(trans='log10') + scale_y_continuous(trans='log10')
 ```
 
@@ -132,8 +207,6 @@ Are transactions and spend correlated?  YES
 
 
 Are prop online and total trans/spend correlated?  - Yes, particuarly at the upper end
-
-
 ```{r}
  
 filter(clarks, !is.nan(prop.spend.online)) %>%
@@ -151,8 +224,7 @@ ggplot( aes(x = prop.trans.online, y = total.trans)) +
 
 
 # Online profile
-
-Online only people seem to only buy one pair at a time - incentivise buy one get one 20% off ass they add to cart?
+Online only people seem to spend a lot less PER TRANSACTION and within a much smaller range (e.g. for shoes only buy one pair at a time) - incentivise buy one get one 20% off as they add to cart?
 
 ```{r}
 clarks.spend %>%
@@ -162,14 +234,14 @@ clarks.spend %>%
 ```
 
 
-Store only people tend not to spend as much overall - can we get email addresses in store? Do we already ask? How high is take up rate?
+Store only people tend not to spend as much OVERALL - can we get them to be returning customers? Offer in bag with purchase? For returning to store or online? Collect email addresses in store? Do we already ask? How high is take up rate?
 
 ```{r}
 clarks.spend %>%
   ggplot( aes(x = online.profile, y = total.spend, group = online.profile)) +
     guides(colour = guide_legend(override.aes = list(alpha = 1)))+
-    geom_jitter(alpha = 0.01 , colour = "blue" ) +
-    geom_boxplot(alpha = 0)  
+   geom_jitter( alpha=0.05 , colour = "red" )   +
+    geom_boxplot( colour = "blue" , alpha=0)  
 ```
 
 
@@ -185,6 +257,8 @@ ggplot(aes(online.profile)) +
 
 
 
+# Look at satisfaction 
+This is not very correlated to anything other than the two metrics being correlated with each other
 
 ```{r}
 clarks.spend %>%
@@ -213,7 +287,7 @@ ggplot(aes(online.profile)) +
  ggplot(data = clarks.spend, aes(x = age, y = total.spend.per.trans, colour = online.profile)) +
           geom_point(alpha = 0.1) + guides(colour = guide_legend(override.aes = list(alpha = 1))) 
 ```
-It seems there is little relationship between age and total spend, but old and young spend less per transaction. Perhaps those in 30s buy for their whole family at once but can't budget more overall. Or they have less time to shop so buy all at once.
+It seems there is little relationship between age and TOTAL SPEND, but old and young spend less PER TRANSACTION. Perhaps those in 30s buy for their whole family at once but can't budget more overall. Or they have less time to shop so buy all at once.
 
 
 
@@ -254,10 +328,12 @@ ggplot( aes(x = distance.to.store, y = total.spend, colour = online.profile)) +
          scale_x_continuous(trans='log10') + scale_y_continuous(trans='log2')
 ```
 
-Can see what you would expect here
+Can see what you would expect here - those closer to store more likely to spend in store. those far away more likely to shop online only.
 
 
 
+
+# Below are lots more pots which may be of interest in future with different data but did not yield much insight
 
 ```{r}
  ggplot(data = clarks, aes(x = online.visits, y = total.spend,  colour = online.profile)) +
@@ -408,8 +484,6 @@ ggplot( aes(x = sat.selection, y = total.spend, group = sat.selection, color = p
 
 
 
-
-
 ```{r}
 filter(clarks, sat.service != "NA") %>%
 filter( !is.nan(prop.spend.online)) %>%
@@ -435,9 +509,6 @@ ggplot( aes(x = sat.selection, y =  prop.spend.online, group = sat.selection)) +
 
 
 
-
-
-
 ```{r}
 clarks%>%
 group_by(sat.selection)%>%
@@ -454,8 +525,6 @@ summarize(mean.spend = mean(total.spend))%>%
   ggplot( aes(x=sat.service, y=mean.spend)) + 
   geom_col()
 ```
-
-
 
 
 
@@ -528,12 +597,6 @@ ggplot(aes(x=store, y=total.spend , group=store))+
   geom_violin()
 
 ```
-
-
-
-
-
-
 
 
 
